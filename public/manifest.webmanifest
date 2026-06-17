@@ -1,0 +1,26 @@
+{
+  "name": "Sip — Water Reminder",
+  "short_name": "Sip",
+  "description": "Gentle hourly reminders to drink water and track your daily hydration.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF3E2",
+  "theme_color": "#E8A93B",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
