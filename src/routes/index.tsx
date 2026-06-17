@@ -33,10 +33,64 @@ function useLogs() {
   return [logs, setLogs] as const;
 }
 
+type ReminderSettings = {
+  enabled: boolean;
+  intervalMin: number;
+  wake: string; // "HH:MM" – start of active window
+  sleep: string; // "HH:MM" – start of quiet hours
+};
+
+const DEFAULT_SETTINGS: ReminderSettings = {
+  enabled: false,
+  intervalMin: 60,
+  wake: "08:00",
+  sleep: "22:00",
+};
+
+function useReminderSettings() {
+  const [s, setS] = useState<ReminderSettings>(DEFAULT_SETTINGS);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.reminders");
+      if (raw) setS({ ...DEFAULT_SETTINGS, ...JSON.parse(raw) });
+    } catch {}
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("sip.reminders", JSON.stringify(s));
+  }, [s]);
+  return [s, setS] as const;
+}
+
+// Minutes since midnight from "HH:MM"
+const toMin = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+const fromMin = (n: number) => {
+  const x = ((n % 1440) + 1440) % 1440;
+  return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+};
+const fmt12 = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  const ap = h >= 12 ? "PM" : "AM";
+  const hh = ((h + 11) % 12) + 1;
+  return `${hh}:${String(m).padStart(2, "0")} ${ap}`;
+};
+
+function computeTimes(s: ReminderSettings): string[] {
+  if (s.intervalMin <= 0) return [];
+  const w = toMin(s.wake);
+  const sl = toMin(s.sleep);
+  // active window length (handles overnight wake > sleep)
+  const span = sl > w ? sl - w : 1440 - w + sl;
+  const out: string[] = [];
+  for (let t = 0; t <= span; t += s.intervalMin) out.push(fromMin(w + t));
+  return out;
+}
+
 function Index() {
   const [logs, setLogs] = useLogs();
-  const [reminders, setReminders] = useState(true);
-  const [interval, setInterval] = useState(60);
+  const [settings, setSettings] = useReminderSettings();
   const today = todayKey();
   const ml = logs[today] ?? 0;
   const pct = Math.min(100, Math.round((ml / DAILY_GOAL_ML) * 100));
@@ -65,6 +119,33 @@ function Index() {
     [logs],
   );
 
+  const times = useMemo(() => computeTimes(settings), [settings]);
+
+  // Scheduler: fire a browser notification when the current minute matches a scheduled time.
+  const firedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!settings.enabled) return;
+    const tick = () => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const stamp = `${todayKey()} ${hhmm}`;
+      if (times.includes(hhmm) && !firedRef.current.has(stamp)) {
+        firedRef.current.add(stamp);
+        fireReminder();
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 20_000);
+    return () => window.clearInterval(id);
+  }, [settings.enabled, times]);
+
+  const toggleReminders = useCallback(async () => {
+    if (!settings.enabled && "Notification" in window && Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    setSettings((s) => ({ ...s, enabled: !s.enabled }));
+  }, [settings.enabled, setSettings]);
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
@@ -83,10 +164,10 @@ function Index() {
         <CalendarCard logs={logs} />
 
         <ReminderCard
-          on={reminders}
-          setOn={setReminders}
-          interval={interval}
-          setInterval={setInterval}
+          settings={settings}
+          setSettings={setSettings}
+          times={times}
+          onToggle={toggleReminders}
         />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
@@ -95,6 +176,32 @@ function Index() {
       </div>
     </div>
   );
+}
+
+function fireReminder() {
+  const body = "Time for a sip of water 💧";
+  try {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Sip", { body, icon: "/favicon.ico" });
+    }
+  } catch {}
+  // Soft chime via WebAudio (no asset needed)
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (Ctx) {
+      const ctx = new Ctx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 880;
+      o.type = "sine";
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+      o.connect(g).connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.65);
+    }
+  } catch {}
 }
 
 function Header() {
