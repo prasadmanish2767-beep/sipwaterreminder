@@ -1,6 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Droplet, Minus, Plus, Bell, BellOff, Trophy, Flame, X, Moon, Sun, Clock } from "lucide-react";
+import {
+  Check,
+  Droplet,
+  Minus,
+  Plus,
+  Bell,
+  BellOff,
+  Trophy,
+  Flame,
+  X,
+  Moon,
+  Sun,
+  Clock,
+  Volume2,
+  VolumeX,
+  Zap,
+  Trash2,
+  Mic,
+  MicOff,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,7 +34,7 @@ export const Route = createFileRoute("/")({
 const DAILY_GOAL_ML = 2000;
 const CUP_ML = 250;
 
-type Log = Record<string, number>; // ISO date -> ml
+type Log = Record<string, number>;
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -36,8 +55,11 @@ function useLogs() {
 type ReminderSettings = {
   enabled: boolean;
   intervalMin: number;
-  wake: string; // "HH:MM" – start of active window
-  sleep: string; // "HH:MM" – start of quiet hours
+  wake: string;
+  sleep: string;
+  sound: boolean;
+  voice: boolean; // speak "paani piyo, time ho gaya"
+  customTimes: string[]; // extra HH:MM
 };
 
 const DEFAULT_SETTINGS: ReminderSettings = {
@@ -45,6 +67,9 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   intervalMin: 60,
   wake: "08:00",
   sleep: "22:00",
+  sound: true,
+  voice: true,
+  customTimes: [],
 };
 
 function useReminderSettings() {
@@ -61,7 +86,6 @@ function useReminderSettings() {
   return [s, setS] as const;
 }
 
-// Minutes since midnight from "HH:MM"
 const toMin = (t: string) => {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
@@ -77,15 +101,24 @@ const fmt12 = (t: string) => {
   return `${hh}:${String(m).padStart(2, "0")} ${ap}`;
 };
 
+// Is `t` inside the active window (wake → sleep, wrapping past midnight)?
+function inWindow(t: string, wake: string, sleep: string): boolean {
+  const x = toMin(t), w = toMin(wake), s = toMin(sleep);
+  if (w === s) return true;
+  return w < s ? x >= w && x <= s : x >= w || x <= s;
+}
+
 function computeTimes(s: ReminderSettings): string[] {
-  if (s.intervalMin <= 0) return [];
-  const w = toMin(s.wake);
-  const sl = toMin(s.sleep);
-  // active window length (handles overnight wake > sleep)
-  const span = sl > w ? sl - w : 1440 - w + sl;
-  const out: string[] = [];
-  for (let t = 0; t <= span; t += s.intervalMin) out.push(fromMin(w + t));
-  return out;
+  const set = new Set<string>();
+  if (s.intervalMin > 0) {
+    const w = toMin(s.wake), sl = toMin(s.sleep);
+    const span = sl > w ? sl - w : 1440 - w + sl;
+    for (let t = 0; t <= span; t += s.intervalMin) set.add(fromMin(w + t));
+  }
+  for (const t of s.customTimes) {
+    if (inWindow(t, s.wake, s.sleep)) set.add(t);
+  }
+  return [...set].sort();
 }
 
 function Index() {
@@ -121,7 +154,7 @@ function Index() {
 
   const times = useMemo(() => computeTimes(settings), [settings]);
 
-  // Scheduler: fire a browser notification when the current minute matches a scheduled time.
+  // Scheduler
   const firedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!settings.enabled) return;
@@ -131,13 +164,13 @@ function Index() {
       const stamp = `${todayKey()} ${hhmm}`;
       if (times.includes(hhmm) && !firedRef.current.has(stamp)) {
         firedRef.current.add(stamp);
-        fireReminder();
+        fireReminder(settings);
       }
     };
     tick();
     const id = window.setInterval(tick, 20_000);
     return () => window.clearInterval(id);
-  }, [settings.enabled, times]);
+  }, [settings, times]);
 
   const toggleReminders = useCallback(async () => {
     if (!settings.enabled && "Notification" in window && Notification.permission === "default") {
@@ -150,9 +183,7 @@ function Index() {
     <div className="min-h-screen bg-background font-sans text-foreground">
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
         <Header />
-
         <HeroCard ml={ml} pct={pct} onAdd={add} />
-
         <QuickAdd onAdd={add} />
 
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -168,7 +199,10 @@ function Index() {
           setSettings={setSettings}
           times={times}
           onToggle={toggleReminders}
+          onTest={() => fireReminder(settings)}
         />
+
+        <InstallHint />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
           Stay hydrated · {DAILY_GOAL_ML / 1000}L daily goal
@@ -178,30 +212,47 @@ function Index() {
   );
 }
 
-function fireReminder() {
-  const body = "Time for a sip of water 💧";
+function fireReminder(s: ReminderSettings) {
+  const body = "Paani piyo — time ho gaya 💧";
   try {
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Sip", { body, icon: "/favicon.ico" });
+      new Notification("Sip", { body, icon: "/icon-512.png", tag: "sip-reminder" });
     }
   } catch {}
-  // Soft chime via WebAudio (no asset needed)
-  try {
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-    if (Ctx) {
-      const ctx = new Ctx();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = 880;
-      o.type = "sine";
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
-      o.connect(g).connect(ctx.destination);
-      o.start();
-      o.stop(ctx.currentTime + 0.65);
-    }
-  } catch {}
+
+  if (s.sound) {
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+      if (Ctx) {
+        const ctx = new Ctx();
+        const play = (freq: number, start: number, dur: number) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.frequency.value = freq;
+          o.type = "sine";
+          g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+          g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + start + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+          o.connect(g).connect(ctx.destination);
+          o.start(ctx.currentTime + start);
+          o.stop(ctx.currentTime + start + dur + 0.05);
+        };
+        play(880, 0, 0.35);
+        play(1320, 0.18, 0.45);
+      }
+    } catch {}
+  }
+
+  if (s.voice && "speechSynthesis" in window) {
+    try {
+      const u = new SpeechSynthesisUtterance("पानी पियो, टाइम हो गया");
+      u.lang = "hi-IN";
+      u.rate = 0.95;
+      u.pitch = 1;
+      // Slight delay so chime plays first
+      setTimeout(() => window.speechSynthesis.speak(u), 700);
+    } catch {}
+  }
 }
 
 function Header() {
@@ -273,29 +324,96 @@ function HeroCard({ ml, pct, onAdd }: { ml: number; pct: number; onAdd: (n: numb
   );
 }
 
+type QuickOpt = { ml: number; label: string; emoji: string };
+const QUICK_PRESETS: QuickOpt[] = [
+  { ml: 100, label: "Sip", emoji: "💧" },
+  { ml: 150, label: "Espresso", emoji: "☕" },
+  { ml: 200, label: "Small", emoji: "🥃" },
+  { ml: 250, label: "Glass", emoji: "🥛" },
+  { ml: 300, label: "Tall", emoji: "🧋" },
+  { ml: 330, label: "Can", emoji: "🥤" },
+  { ml: 350, label: "Mug", emoji: "🍵" },
+  { ml: 400, label: "Latte", emoji: "🍶" },
+  { ml: 450, label: "Pint", emoji: "🍺" },
+  { ml: 500, label: "Bottle", emoji: "🧴" },
+  { ml: 600, label: "Sport", emoji: "🏃" },
+  { ml: 750, label: "Flask", emoji: "🧪" },
+  { ml: 1000, label: "1 Litre", emoji: "🪣" },
+  { ml: 1500, label: "1.5L", emoji: "🌊" },
+  { ml: 2000, label: "2 Litre", emoji: "🛢️" },
+];
+
 function QuickAdd({ onAdd }: { onAdd: (n: number) => void }) {
-  const options = [
-    { ml: 150, label: "Espresso", emoji: "☕" },
-    { ml: 250, label: "Glass", emoji: "🥛" },
-    { ml: 350, label: "Mug", emoji: "🍵" },
-    { ml: 500, label: "Bottle", emoji: "🧴" },
-  ];
+  const [custom, setCustom] = useState("");
+  const [extras, setExtras] = useState<QuickOpt[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.customCups");
+      if (raw) setExtras(JSON.parse(raw));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("sip.customCups", JSON.stringify(extras));
+  }, [extras]);
+
+  const submitCustom = () => {
+    const n = parseInt(custom, 10);
+    if (!Number.isFinite(n) || n <= 0 || n > 5000) return;
+    onAdd(n);
+    if (!extras.some((e) => e.ml === n) && !QUICK_PRESETS.some((e) => e.ml === n)) {
+      setExtras((x) => [...x, { ml: n, label: "Custom", emoji: "✨" }].slice(-6));
+    }
+    setCustom("");
+  };
+
+  const all = [...QUICK_PRESETS, ...extras];
+
   return (
     <section className="mt-6">
-      <h2 className="mb-3 px-1 text-sm font-medium text-muted-foreground">Quick add</h2>
-      <div className="grid grid-cols-4 gap-3">
-        {options.map((o) => (
-          <button
-            key={o.label}
-            onClick={() => onAdd(o.ml)}
-            className="group flex flex-col items-center gap-1 rounded-2xl border border-border bg-card py-4 transition hover:border-[var(--honey)] hover:shadow-[var(--shadow-soft)]"
-          >
-            <span className="text-2xl transition-transform group-hover:scale-110">{o.emoji}</span>
-            <span className="text-xs font-medium">{o.label}</span>
-            <span className="text-[10px] text-muted-foreground">{o.ml}ml</span>
-          </button>
-        ))}
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h2 className="text-sm font-medium text-muted-foreground">Quick add</h2>
+        <span className="text-[10px] text-muted-foreground">swipe →</span>
       </div>
+
+      <div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8">
+        <div className="flex w-max gap-3 pb-1">
+          {all.map((o, i) => (
+            <button
+              key={`${o.ml}-${i}`}
+              onClick={() => onAdd(o.ml)}
+              className="group flex w-[88px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card py-4 transition hover:border-[var(--honey)] hover:shadow-[var(--shadow-soft)]"
+            >
+              <span className="text-2xl transition-transform group-hover:scale-110">{o.emoji}</span>
+              <span className="text-xs font-medium">{o.label}</span>
+              <span className="text-[10px] text-muted-foreground">{o.ml}ml</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); submitCustom(); }}
+        className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-card p-2 pl-4"
+      >
+        <span className="text-xs font-medium text-muted-foreground">Custom</span>
+        <input
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={custom}
+          onChange={(e) => setCustom(e.target.value.replace(/\D/g, ""))}
+          placeholder="e.g. 275"
+          className="flex-1 bg-transparent text-sm tabular-nums outline-none placeholder:text-muted-foreground"
+        />
+        <span className="text-xs text-muted-foreground">ml</span>
+        <button
+          type="submit"
+          disabled={!custom}
+          className="flex items-center gap-1 rounded-full bg-[var(--honey-deep)] px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-40"
+        >
+          <Plus className="h-3 w-3" /> Add
+        </button>
+      </form>
     </section>
   );
 }
@@ -321,7 +439,7 @@ function CalendarCard({ logs }: { logs: Log }) {
   const monthName = now.toLocaleString("en", { month: "long", year: "numeric" });
   const first = new Date(year, month, 1);
   const days = new Date(year, month + 1, 0).getDate();
-  const startWeekday = (first.getDay() + 6) % 7; // Mon-start
+  const startWeekday = (first.getDay() + 6) % 7;
   const cells: (number | null)[] = [
     ...Array(startWeekday).fill(null),
     ...Array.from({ length: days }, (_, i) => i + 1),
@@ -379,22 +497,35 @@ function ReminderCard({
   setSettings,
   times,
   onToggle,
+  onTest,
 }: {
   settings: ReminderSettings;
   setSettings: React.Dispatch<React.SetStateAction<ReminderSettings>>;
   times: string[];
   onToggle: () => void;
+  onTest: () => void;
 }) {
-  const { enabled, intervalMin, wake, sleep } = settings;
-  const perm = typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
+  const { enabled, intervalMin, wake, sleep, sound, voice, customTimes } = settings;
+  const [perm, setPerm] = useState<NotificationPermission | "default">("default");
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) setPerm(Notification.permission);
+  }, [enabled]);
 
-  // Next upcoming reminder today
-  const next = useMemo(() => {
-    if (!enabled || times.length === 0) return null;
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    return times.find((t) => toMin(t) > nowMin) ?? null;
-  }, [enabled, times]);
+  const [newTime, setNewTime] = useState("");
+
+  const nowMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+  const upcoming = times.filter((t) => toMin(t) > nowMin).slice(0, 6);
+  const next = upcoming[0] ?? null;
+
+  const addCustom = () => {
+    if (!/^\d{2}:\d{2}$/.test(newTime)) return;
+    if (customTimes.includes(newTime)) return;
+    setSettings((s) => ({ ...s, customTimes: [...s.customTimes, newTime].sort() }));
+    setNewTime("");
+  };
+
+  const removeCustom = (t: string) =>
+    setSettings((s) => ({ ...s, customTimes: s.customTimes.filter((x) => x !== t) }));
 
   return (
     <section className="mt-6 rounded-[28px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]">
@@ -430,9 +561,7 @@ function ReminderCard({
       {/* Interval */}
       <div className="mt-5">
         <div className="mb-2 flex items-center justify-between px-1">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Every
-          </span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Every</span>
           <span className="text-xs font-medium text-foreground">{intervalMin} min</span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -452,7 +581,7 @@ function ReminderCard({
         </div>
       </div>
 
-      {/* Active window / quiet hours */}
+      {/* Quiet hours */}
       <div className="mt-5 grid grid-cols-2 gap-3">
         <TimeField
           icon={<Sun className="h-3.5 w-3.5" />}
@@ -468,14 +597,75 @@ function ReminderCard({
         />
       </div>
       <p className="mt-2 px-1 text-[11px] text-muted-foreground">
-        Reminders pause between {fmt12(sleep)} and {fmt12(wake)}.
+        Quiet hours: no nudges between {fmt12(sleep)} and {fmt12(wake)} — even custom times in that window are skipped.
       </p>
 
-      {/* Times list */}
+      {/* Custom times */}
       <div className="mt-5">
         <div className="mb-2 flex items-center justify-between px-1">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Scheduled times
+            Custom reminder times
+          </span>
+          <span className="text-[11px] text-muted-foreground">{customTimes.length} added</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-2 pl-3">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="time"
+            value={newTime}
+            onChange={(e) => setNewTime(e.target.value)}
+            className="flex-1 bg-transparent text-sm tabular-nums outline-none"
+          />
+          <button
+            onClick={addCustom}
+            disabled={!newTime}
+            className="flex items-center gap-1 rounded-full bg-[var(--honey-deep)] px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-40"
+          >
+            <Plus className="h-3 w-3" /> Add
+          </button>
+        </div>
+        {customTimes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {customTimes.map((t) => (
+              <span
+                key={t}
+                className="group flex items-center gap-1 rounded-full bg-[var(--cream)] py-1 pl-2.5 pr-1 text-[11px] font-medium tabular-nums text-[oklch(0.35_0.06_65)]"
+              >
+                {fmt12(t)}
+                <button
+                  onClick={() => removeCustom(t)}
+                  className="grid h-4 w-4 place-items-center rounded-full hover:bg-[var(--honey)]/30"
+                  aria-label="Remove"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sound + voice toggles */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <ToggleRow
+          on={sound}
+          onChange={(v) => setSettings((s) => ({ ...s, sound: v }))}
+          icon={sound ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          label="Chime sound"
+        />
+        <ToggleRow
+          on={voice}
+          onChange={(v) => setSettings((s) => ({ ...s, voice: v }))}
+          icon={voice ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
+          label='Voice "पानी पियो"'
+        />
+      </div>
+
+      {/* Upcoming reminders */}
+      <div className="mt-5">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Upcoming today
           </span>
           {next && (
             <span className="flex items-center gap-1 text-[11px] text-[oklch(0.4_0.08_70)]">
@@ -483,39 +673,87 @@ function ReminderCard({
             </span>
           )}
         </div>
-        {times.length === 0 ? (
+        {upcoming.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-            Choose an interval to generate times.
+            All done for today — see you tomorrow.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {times.map((t) => {
-              const isNext = t === next;
+          <ol className="space-y-1.5">
+            {upcoming.map((t, i) => {
+              const mins = toMin(t) - nowMin;
+              const inLabel = mins < 60 ? `in ${mins}m` : `in ${Math.floor(mins / 60)}h ${mins % 60}m`;
               return (
-                <span
+                <li
                   key={t}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums transition ${
-                    isNext
-                      ? "bg-[var(--honey-deep)] text-white"
-                      : "bg-[var(--cream)] text-[oklch(0.35_0.06_65)]"
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs ${
+                    i === 0 ? "bg-[var(--honey-deep)] text-white" : "bg-[var(--cream)] text-[oklch(0.35_0.06_65)]"
                   }`}
                 >
-                  {fmt12(t)}
-                </span>
+                  <span className="font-medium tabular-nums">{fmt12(t)}</span>
+                  <span className={`tabular-nums ${i === 0 ? "opacity-90" : "opacity-70"}`}>{inLabel}</span>
+                </li>
               );
             })}
-          </div>
+          </ol>
+        )}
+        {times.length > upcoming.length && (
+          <p className="mt-2 px-1 text-[10px] text-muted-foreground">
+            +{times.length - upcoming.length} earlier today · {times.length} total
+          </p>
         )}
       </div>
+
+      {/* Test button */}
+      <button
+        onClick={onTest}
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-full border border-[var(--honey-deep)] bg-[var(--cream)] px-4 py-2.5 text-sm font-medium text-[oklch(0.3_0.05_60)] transition hover:bg-[var(--honey)]/30"
+      >
+        <Zap className="h-4 w-4" /> Send a test reminder
+      </button>
 
       {enabled && perm !== "granted" && (
         <p className="mt-4 rounded-xl bg-[var(--cream)] px-3 py-2 text-[11px] text-[oklch(0.35_0.06_65)]">
           {perm === "denied"
-            ? "Notifications are blocked in your browser. You'll still hear a soft chime while this tab is open."
-            : "Allow notifications to get reminders even when this tab is in the background."}
+            ? "Notifications are blocked. You'll still hear the chime while this tab is open."
+            : "Allow notifications so reminders work even when Sip is in the background."}
         </p>
       )}
     </section>
+  );
+}
+
+function ToggleRow({
+  on,
+  onChange,
+  icon,
+  label,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-3 text-left transition hover:border-[var(--honey)]"
+    >
+      <span className="flex items-center gap-2 text-xs font-medium">
+        <span className="text-muted-foreground">{icon}</span>
+        {label}
+      </span>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+          on ? "bg-[var(--honey-deep)]" : "bg-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+            on ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -542,5 +780,38 @@ function TimeField({
         className="bg-transparent font-display text-lg font-semibold tabular-nums text-foreground outline-none"
       />
     </label>
+  );
+}
+
+function InstallHint() {
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem("sip.installHintDismissed") === "1");
+    } catch {}
+  }, []);
+  if (dismissed) return null;
+  return (
+    <section className="mt-6 flex items-start gap-3 rounded-[20px] border border-border bg-[var(--cream)] p-4">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white text-[oklch(0.35_0.08_70)]">
+        <Droplet className="h-4 w-4" />
+      </div>
+      <div className="flex-1">
+        <p className="text-xs font-semibold text-[oklch(0.3_0.05_60)]">Install Sip as an app</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-[oklch(0.4_0.05_65)]">
+          On Android Chrome: menu → <strong>Install app</strong>. On iPhone Safari: Share → <strong>Add to Home Screen</strong>.
+        </p>
+      </div>
+      <button
+        onClick={() => {
+          localStorage.setItem("sip.installHintDismissed", "1");
+          setDismissed(true);
+        }}
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+        aria-label="Dismiss"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </section>
   );
 }
