@@ -7,6 +7,10 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Force Nitro to produce Vercel Build Output API files when this project is
+  // built outside Lovable (Vercel/GitHub import). Inside Lovable this is
+  // ignored and the native hosting target is still used.
+  nitro: { preset: "vercel" },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
