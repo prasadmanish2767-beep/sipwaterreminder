@@ -507,66 +507,6 @@ function CalendarCard({ logs, now }: { logs: Log; now: Date | null }) {
   );
 }
 
-function LegacyCalendarCard({ logs }: { logs: Log }) {
-  const now = SSR_SAFE_DATE;
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const monthName = now.toLocaleString("en", { month: "long", year: "numeric" });
-  const first = new Date(year, month, 1);
-  const days = new Date(year, month + 1, 0).getDate();
-  const startWeekday = (first.getDay() + 6) % 7;
-  const cells: (number | null)[] = [
-    ...Array(startWeekday).fill(null),
-    ...Array.from({ length: days }, (_, i) => i + 1),
-  ];
-  const todayDate = now.getDate();
-
-  return (
-    <section className="mt-6 rounded-[28px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">{monthName}</h2>
-        <span className="text-xs text-muted-foreground">Goal met days</span>
-      </div>
-      <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-          <span key={i}>{d}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((d, i) => {
-          if (d === null) return <div key={i} />;
-          const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const dayMl = logs[k] ?? 0;
-          const done = dayMl >= DAILY_GOAL_ML;
-          const partial = dayMl > 0 && !done;
-          const isToday = d === todayDate;
-          return (
-            <div
-              key={i}
-              className={`flex aspect-square flex-col items-center justify-center rounded-xl text-xs transition ${
-                isToday ? "bg-[var(--cream)] font-semibold" : ""
-              }`}
-            >
-              <span className={`text-[11px] ${isToday ? "text-[oklch(0.3_0.05_60)]" : "text-muted-foreground"}`}>
-                {d}
-              </span>
-              {done ? (
-                <span className="mt-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--honey)]">
-                  <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />
-                </span>
-              ) : partial ? (
-                <span className="mt-1 h-4 w-4 rounded-full border-2 border-[var(--honey)]" />
-              ) : (
-                <span className="mt-1 h-1 w-1 rounded-full bg-border" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function ReminderCard({
   settings,
   setSettings,
