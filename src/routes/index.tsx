@@ -134,7 +134,7 @@ function useClientClock() {
   return now;
 }
 
-function Index() {
+export function SipApp() {
   const [logs, setLogs] = useLogs();
   const [settings, setSettings] = useReminderSettings();
   const clientNow = useClientClock();
@@ -225,6 +225,10 @@ function Index() {
       </div>
     </div>
   );
+}
+
+function Index() {
+  return <SipApp />;
 }
 
 function fireReminder(s: ReminderSettings) {
