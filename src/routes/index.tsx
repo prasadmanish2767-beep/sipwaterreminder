@@ -20,6 +20,7 @@ import {
   Mic,
   MicOff,
 } from "lucide-react";
+import { Onboarding } from "../components/Onboarding";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -195,6 +196,7 @@ export function SipApp() {
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
+      <Onboarding />
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
         <Header />
         <HeroCard ml={ml} pct={pct} onAdd={add} />
