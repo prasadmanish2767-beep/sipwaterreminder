@@ -157,10 +157,13 @@ function useClientClock() {
 export function SipApp() {
   const [logs, setLogs] = useLogs();
   const [settings, setSettings] = useReminderSettings();
+  const [dailyGoal, setDailyGoal] = useDailyGoal();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [introKey, setIntroKey] = useState(0);
   const clientNow = useClientClock();
   const today = todayKey();
   const ml = logs[today] ?? 0;
-  const pct = Math.min(100, Math.round((ml / DAILY_GOAL_ML) * 100));
+  const pct = Math.min(100, Math.round((ml / dailyGoal) * 100));
 
   const add = (amount: number) =>
     setLogs((l) => ({ ...l, [today]: Math.max(0, (l[today] ?? 0) + amount) }));
@@ -168,22 +171,22 @@ export function SipApp() {
   const streak = useMemo(() => {
     let s = 0;
     const d = new Date();
-    while ((logs[d.toISOString().slice(0, 10)] ?? 0) >= DAILY_GOAL_ML) {
+    while ((logs[d.toISOString().slice(0, 10)] ?? 0) >= dailyGoal) {
       s++;
       d.setDate(d.getDate() - 1);
     }
     return s;
-  }, [logs]);
+  }, [logs, dailyGoal]);
 
   const completedThisMonth = useMemo(() => {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    return Object.entries(logs).filter(([k, v]) => k.startsWith(ym) && v >= DAILY_GOAL_ML).length;
-  }, [logs]);
+    return Object.entries(logs).filter(([k, v]) => k.startsWith(ym) && v >= dailyGoal).length;
+  }, [logs, dailyGoal]);
 
   const allTime = useMemo(
-    () => Object.values(logs).filter((v) => v >= DAILY_GOAL_ML).length,
-    [logs],
+    () => Object.values(logs).filter((v) => v >= dailyGoal).length,
+    [logs, dailyGoal],
   );
 
   const times = useMemo(() => computeTimes(settings), [settings]);
@@ -213,12 +216,48 @@ export function SipApp() {
     setSettings((s) => ({ ...s, enabled: !s.enabled }));
   }, [settings.enabled, setSettings]);
 
+  const setReminderField = (key: "enabled" | "sound" | "voice", value: boolean) => {
+    if (key === "enabled" && value && "Notification" in window && Notification.permission === "default") {
+      try { Notification.requestPermission(); } catch {}
+    }
+    setSettings((s) => ({ ...s, [key]: value }));
+  };
+
+  const resetToday = () => setLogs((l) => ({ ...l, [today]: 0 }));
+  const resetAll = () => {
+    try {
+      localStorage.removeItem("sip.logs");
+      localStorage.removeItem("sip.customCups");
+      localStorage.removeItem("sip.reminders");
+      localStorage.removeItem("sip.dailyGoal");
+      localStorage.removeItem("sip.installHintDismissed");
+    } catch {}
+    setLogs({});
+    setSettings(DEFAULT_SETTINGS);
+    setDailyGoal(DEFAULT_GOAL_ML);
+  };
+  const replayIntro = () => {
+    try { localStorage.removeItem("sip.onboarded.v1"); } catch {}
+    setIntroKey((k) => k + 1);
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
-      <Onboarding />
+      <Onboarding key={introKey} />
+      <SettingsMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        reminders={{ enabled: settings.enabled, sound: settings.sound, voice: settings.voice }}
+        setReminder={setReminderField}
+        dailyGoal={dailyGoal}
+        setDailyGoal={setDailyGoal}
+        onResetToday={resetToday}
+        onResetAll={resetAll}
+        onReplayIntro={replayIntro}
+      />
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
-        <Header />
-        <HeroCard ml={ml} pct={pct} onAdd={add} />
+        <Header onMenu={() => setMenuOpen(true)} />
+        <HeroCard ml={ml} pct={pct} goal={dailyGoal} onAdd={add} />
         <QuickAdd onAdd={add} />
 
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -227,7 +266,7 @@ export function SipApp() {
           <StatChip icon={<Flame className="h-4 w-4" />} value={streak} label="day streak" />
         </div>
 
-        <CalendarCard logs={logs} now={clientNow} />
+        <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
 
         <ReminderCard
           settings={settings}
@@ -241,12 +280,13 @@ export function SipApp() {
         <InstallHint />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
-          Stay hydrated · {DAILY_GOAL_ML / 1000}L daily goal
+          Stay hydrated · {(dailyGoal / 1000).toFixed(dailyGoal % 1000 ? 1 : 0)}L daily goal
         </footer>
       </div>
     </div>
   );
 }
+
 
 function Index() {
   return <SipApp />;
