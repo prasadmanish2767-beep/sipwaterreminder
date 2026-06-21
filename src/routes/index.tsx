@@ -19,8 +19,10 @@ import {
   Trash2,
   Mic,
   MicOff,
+  Menu,
 } from "lucide-react";
 import { Onboarding } from "../components/Onboarding";
+import { SettingsMenu } from "../components/SettingsMenu";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,8 +34,25 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const DAILY_GOAL_ML = 2000;
+const DEFAULT_GOAL_ML = 2000;
 const CUP_ML = 250;
+
+function useDailyGoal() {
+  const [goal, setGoal] = useState<number>(DEFAULT_GOAL_ML);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.dailyGoal");
+      if (raw) {
+        const n = parseInt(raw, 10);
+        if (Number.isFinite(n) && n > 0) setGoal(n);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("sip.dailyGoal", String(goal));
+  }, [goal]);
+  return [goal, setGoal] as const;
+}
 
 type Log = Record<string, number>;
 
@@ -138,10 +157,13 @@ function useClientClock() {
 export function SipApp() {
   const [logs, setLogs] = useLogs();
   const [settings, setSettings] = useReminderSettings();
+  const [dailyGoal, setDailyGoal] = useDailyGoal();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [introKey, setIntroKey] = useState(0);
   const clientNow = useClientClock();
   const today = todayKey();
   const ml = logs[today] ?? 0;
-  const pct = Math.min(100, Math.round((ml / DAILY_GOAL_ML) * 100));
+  const pct = Math.min(100, Math.round((ml / dailyGoal) * 100));
 
   const add = (amount: number) =>
     setLogs((l) => ({ ...l, [today]: Math.max(0, (l[today] ?? 0) + amount) }));
@@ -149,22 +171,22 @@ export function SipApp() {
   const streak = useMemo(() => {
     let s = 0;
     const d = new Date();
-    while ((logs[d.toISOString().slice(0, 10)] ?? 0) >= DAILY_GOAL_ML) {
+    while ((logs[d.toISOString().slice(0, 10)] ?? 0) >= dailyGoal) {
       s++;
       d.setDate(d.getDate() - 1);
     }
     return s;
-  }, [logs]);
+  }, [logs, dailyGoal]);
 
   const completedThisMonth = useMemo(() => {
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    return Object.entries(logs).filter(([k, v]) => k.startsWith(ym) && v >= DAILY_GOAL_ML).length;
-  }, [logs]);
+    return Object.entries(logs).filter(([k, v]) => k.startsWith(ym) && v >= dailyGoal).length;
+  }, [logs, dailyGoal]);
 
   const allTime = useMemo(
-    () => Object.values(logs).filter((v) => v >= DAILY_GOAL_ML).length,
-    [logs],
+    () => Object.values(logs).filter((v) => v >= dailyGoal).length,
+    [logs, dailyGoal],
   );
 
   const times = useMemo(() => computeTimes(settings), [settings]);
@@ -194,12 +216,48 @@ export function SipApp() {
     setSettings((s) => ({ ...s, enabled: !s.enabled }));
   }, [settings.enabled, setSettings]);
 
+  const setReminderField = (key: "enabled" | "sound" | "voice", value: boolean) => {
+    if (key === "enabled" && value && "Notification" in window && Notification.permission === "default") {
+      try { Notification.requestPermission(); } catch {}
+    }
+    setSettings((s) => ({ ...s, [key]: value }));
+  };
+
+  const resetToday = () => setLogs((l) => ({ ...l, [today]: 0 }));
+  const resetAll = () => {
+    try {
+      localStorage.removeItem("sip.logs");
+      localStorage.removeItem("sip.customCups");
+      localStorage.removeItem("sip.reminders");
+      localStorage.removeItem("sip.dailyGoal");
+      localStorage.removeItem("sip.installHintDismissed");
+    } catch {}
+    setLogs({});
+    setSettings(DEFAULT_SETTINGS);
+    setDailyGoal(DEFAULT_GOAL_ML);
+  };
+  const replayIntro = () => {
+    try { localStorage.removeItem("sip.onboarded.v1"); } catch {}
+    setIntroKey((k) => k + 1);
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
-      <Onboarding />
+      <Onboarding key={introKey} />
+      <SettingsMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        reminders={{ enabled: settings.enabled, sound: settings.sound, voice: settings.voice }}
+        setReminder={setReminderField}
+        dailyGoal={dailyGoal}
+        setDailyGoal={setDailyGoal}
+        onResetToday={resetToday}
+        onResetAll={resetAll}
+        onReplayIntro={replayIntro}
+      />
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
-        <Header />
-        <HeroCard ml={ml} pct={pct} onAdd={add} />
+        <Header onMenu={() => setMenuOpen(true)} />
+        <HeroCard ml={ml} pct={pct} goal={dailyGoal} onAdd={add} />
         <QuickAdd onAdd={add} />
 
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -208,7 +266,7 @@ export function SipApp() {
           <StatChip icon={<Flame className="h-4 w-4" />} value={streak} label="day streak" />
         </div>
 
-        <CalendarCard logs={logs} now={clientNow} />
+        <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
 
         <ReminderCard
           settings={settings}
@@ -222,12 +280,13 @@ export function SipApp() {
         <InstallHint />
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
-          Stay hydrated · {DAILY_GOAL_ML / 1000}L daily goal
+          Stay hydrated · {(dailyGoal / 1000).toFixed(dailyGoal % 1000 ? 1 : 0)}L daily goal
         </footer>
       </div>
     </div>
   );
 }
+
 
 function Index() {
   return <SipApp />;
@@ -276,7 +335,7 @@ function fireReminder(s: ReminderSettings) {
   }
 }
 
-function Header() {
+function Header({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="mb-6 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -288,15 +347,19 @@ function Header() {
           <h1 className="font-display text-xl font-semibold leading-none">Sip</h1>
         </div>
       </div>
-      <button className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground">
-        <X className="h-4 w-4" />
+      <button
+        onClick={onMenu}
+        aria-label="Open menu"
+        className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground hover:border-[var(--honey)]"
+      >
+        <Menu className="h-4 w-4" />
       </button>
     </header>
   );
 }
 
-function HeroCard({ ml, pct, onAdd }: { ml: number; pct: number; onAdd: (n: number) => void }) {
-  const left = Math.max(0, DAILY_GOAL_ML - ml);
+function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: number; onAdd: (n: number) => void }) {
+  const left = Math.max(0, goal - ml);
   return (
     <section
       className="relative overflow-hidden rounded-[28px] p-7 shadow-[var(--shadow-soft)]"
@@ -323,8 +386,9 @@ function HeroCard({ ml, pct, onAdd }: { ml: number; pct: number; onAdd: (n: numb
       </div>
       <div className="mt-2 flex justify-between text-[11px] font-medium text-[oklch(0.4_0.05_65)]">
         <span>{pct}%</span>
-        <span>{DAILY_GOAL_ML / 1000}L</span>
+        <span>{(goal / 1000).toFixed(goal % 1000 ? 1 : 0)}L</span>
       </div>
+
 
       <div className="mt-6 flex items-center gap-3">
         <button
@@ -453,7 +517,7 @@ function StatChip({ icon, value, label }: { icon: React.ReactNode; value: number
   );
 }
 
-function CalendarCard({ logs, now }: { logs: Log; now: Date | null }) {
+function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date | null }) {
   const displayNow = now ?? SSR_SAFE_DATE;
   const year = displayNow.getFullYear();
   const month = displayNow.getMonth();
@@ -483,7 +547,7 @@ function CalendarCard({ logs, now }: { logs: Log; now: Date | null }) {
           if (d === null) return <div key={i} />;
           const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const dayMl = logs[k] ?? 0;
-          const done = dayMl >= DAILY_GOAL_ML;
+          const done = dayMl >= goal;
           const partial = dayMl > 0 && !done;
           const isToday = now !== null && d === todayDate;
           return (
