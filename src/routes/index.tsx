@@ -517,7 +517,7 @@ function StatChip({ icon, value, label }: { icon: React.ReactNode; value: number
   );
 }
 
-function CalendarCard({ logs, now }: { logs: Log; now: Date | null }) {
+function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date | null }) {
   const displayNow = now ?? SSR_SAFE_DATE;
   const year = displayNow.getFullYear();
   const month = displayNow.getMonth();
@@ -547,7 +547,7 @@ function CalendarCard({ logs, now }: { logs: Log; now: Date | null }) {
           if (d === null) return <div key={i} />;
           const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const dayMl = logs[k] ?? 0;
-          const done = dayMl >= DAILY_GOAL_ML;
+          const done = dayMl >= goal;
           const partial = dayMl > 0 && !done;
           const isToday = now !== null && d === todayDate;
           return (
