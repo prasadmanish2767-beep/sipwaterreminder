@@ -335,7 +335,7 @@ function fireReminder(s: ReminderSettings) {
   }
 }
 
-function Header() {
+function Header({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="mb-6 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -347,15 +347,19 @@ function Header() {
           <h1 className="font-display text-xl font-semibold leading-none">Sip</h1>
         </div>
       </div>
-      <button className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground">
-        <X className="h-4 w-4" />
+      <button
+        onClick={onMenu}
+        aria-label="Open menu"
+        className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground hover:border-[var(--honey)]"
+      >
+        <Menu className="h-4 w-4" />
       </button>
     </header>
   );
 }
 
-function HeroCard({ ml, pct, onAdd }: { ml: number; pct: number; onAdd: (n: number) => void }) {
-  const left = Math.max(0, DAILY_GOAL_ML - ml);
+function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: number; onAdd: (n: number) => void }) {
+  const left = Math.max(0, goal - ml);
   return (
     <section
       className="relative overflow-hidden rounded-[28px] p-7 shadow-[var(--shadow-soft)]"
@@ -382,8 +386,9 @@ function HeroCard({ ml, pct, onAdd }: { ml: number; pct: number; onAdd: (n: numb
       </div>
       <div className="mt-2 flex justify-between text-[11px] font-medium text-[oklch(0.4_0.05_65)]">
         <span>{pct}%</span>
-        <span>{DAILY_GOAL_ML / 1000}L</span>
+        <span>{(goal / 1000).toFixed(goal % 1000 ? 1 : 0)}L</span>
       </div>
+
 
       <div className="mt-6 flex items-center gap-3">
         <button
