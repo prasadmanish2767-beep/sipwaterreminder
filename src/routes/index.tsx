@@ -34,8 +34,25 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const DAILY_GOAL_ML = 2000;
+const DEFAULT_GOAL_ML = 2000;
 const CUP_ML = 250;
+
+function useDailyGoal() {
+  const [goal, setGoal] = useState<number>(DEFAULT_GOAL_ML);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.dailyGoal");
+      if (raw) {
+        const n = parseInt(raw, 10);
+        if (Number.isFinite(n) && n > 0) setGoal(n);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("sip.dailyGoal", String(goal));
+  }, [goal]);
+  return [goal, setGoal] as const;
+}
 
 type Log = Record<string, number>;
 
