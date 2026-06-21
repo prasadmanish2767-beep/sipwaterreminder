@@ -19,8 +19,10 @@ import {
   Trash2,
   Mic,
   MicOff,
+  Menu,
 } from "lucide-react";
 import { Onboarding } from "../components/Onboarding";
+import { SettingsMenu } from "../components/SettingsMenu";
 
 export const Route = createFileRoute("/")({
   head: () => ({
