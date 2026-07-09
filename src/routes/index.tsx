@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Onboarding } from "../components/Onboarding";
 import { SettingsMenu } from "../components/SettingsMenu";
+import { OfflineBanner } from "../components/OfflineBanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -243,6 +244,7 @@ export function SipApp() {
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
+      <OfflineBanner />
       <Onboarding key={introKey} />
       <SettingsMenu
         open={menuOpen}
