@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   X,
   Bell,
@@ -12,6 +13,10 @@ import {
   Droplet,
   Info,
   Target,
+  Shield,
+  FileText,
+  Mail,
+  ChevronRight,
 } from "lucide-react";
 
 type Props = {
@@ -143,11 +148,14 @@ export function SettingsMenu({
                 onClose();
               }}
             />
-            <MenuRow
-              icon={<Info className="h-4 w-4" />}
-              label="About Sip"
-              sub="v1.0 · Stay hydrated, beautifully"
-            />
+            <LinkRow to="/about" icon={<Info className="h-4 w-4" />} label="About Sip" sub="v1.0 · Stay hydrated, beautifully" onNav={onClose} />
+          </Section>
+
+          {/* Legal & contact */}
+          <Section title="Legal & support">
+            <LinkRow to="/privacy" icon={<Shield className="h-4 w-4" />} label="Privacy Policy" sub="How your data is handled" onNav={onClose} />
+            <LinkRow to="/terms" icon={<FileText className="h-4 w-4" />} label="Terms & Conditions" sub="Rules for using Sip" onNav={onClose} />
+            <LinkRow to="/contact" icon={<Mail className="h-4 w-4" />} label="Contact us" sub="prasadmanish2767@gmail.com" onNav={onClose} />
           </Section>
 
           {/* Danger */}
