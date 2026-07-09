@@ -309,3 +309,34 @@ function MenuRow({
     </button>
   );
 }
+
+function LinkRow({
+  to,
+  icon,
+  label,
+  sub,
+  onNav,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  onNav?: () => void;
+}) {
+  return (
+    <Link
+      to={to}
+      onClick={onNav}
+      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition hover:border-[var(--honey)]"
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--cream)] text-[oklch(0.35_0.08_70)]">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{label}</span>
+        {sub && <span className="block truncate text-[11px] text-muted-foreground">{sub}</span>}
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </Link>
+  );
+}
