@@ -1,14 +1,19 @@
 {
   "name": "Sip — Water Reminder",
   "short_name": "Sip",
-  "description": "Gentle hourly reminders to drink water and track your daily hydration.",
-  "start_url": "/",
+  "description": "Gentle hourly reminders to drink water and track your daily hydration. Privacy-first, works offline.",
+  "start_url": "/?source=pwa",
+  "id": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
-  "background_color": "#FBF3E2",
-  "theme_color": "#E8A93B",
+  "background_color": "#faf3e2",
+  "theme_color": "#f2b84b",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["health", "lifestyle", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-512.png",
@@ -21,6 +26,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add a cup",
+      "short_name": "Add cup",
+      "description": "Log 250ml water",
+      "url": "/?action=add-cup"
     }
   ]
 }

@@ -5,26 +5,82 @@
      crossorigin="anonymous"></script>
     <meta name="google-site-verification" content="m427BR53ugmMfapruucTz2EaBcE5NMOXmMUcXXeJf34" />
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f2b84b" />
     <meta name="description" content="Track your daily water intake with gentle hourly reminders." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Sip" />
+    <link rel="apple-touch-icon" href="/icon-512.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/favicon.ico" />
     <title>Sip — Water Reminder</title>
+    <style>
+      html, body { margin: 0; background: #faf3e2; }
+      #sip-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: radial-gradient(ellipse at top, #f7e4b8 0%, #faf3e2 60%, #f5ecd9 100%);
+        color: #2a1f10;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        transition: opacity .35s ease;
+      }
+      #sip-splash.hide { opacity: 0; pointer-events: none; }
+      #sip-splash .drop {
+        width: 72px; height: 72px; border-radius: 22px;
+        background: #f2b84b;
+        display: grid; place-items: center;
+        box-shadow: 0 12px 30px -8px rgba(200,140,20,.45);
+        animation: sipPulse 1.4s ease-in-out infinite;
+      }
+      #sip-splash .drop svg { width: 34px; height: 34px; color: #2a1f10; }
+      #sip-splash h1 {
+        margin: 22px 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.01em;
+      }
+      #sip-splash p { margin: 0; font-size: 13px; color: #7a6640; }
+      #sip-splash .bar {
+        margin-top: 28px; width: 120px; height: 3px; border-radius: 999px;
+        background: rgba(0,0,0,.08); overflow: hidden; position: relative;
+      }
+      #sip-splash .bar::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(90deg, transparent, #f2b84b, transparent);
+        animation: sipBar 1.2s linear infinite;
+      }
+      @keyframes sipPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+      @keyframes sipBar { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    </style>
   </head>
   <body>
+    <div id="sip-splash" role="status" aria-label="Loading Sip">
+      <div class="drop">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2s6 7.5 6 12a6 6 0 1 1-12 0c0-4.5 6-12 6-12z"/></svg>
+      </div>
+      <h1>Sip</h1>
+      <p>Stay hydrated, beautifully</p>
+      <div class="bar"></div>
+    </div>
     <div id="root"></div>
-    <noscript>Sip needs JavaScript enabled to run reminders.</noscript>
+    <noscript>Sip needs JavaScript enabled to run reminders. Please enable JavaScript in your browser settings.</noscript>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Hide splash once the app has mounted (or after a max timeout as a safety net).
+      (function () {
+        var splash = document.getElementById("sip-splash");
+        if (!splash) return;
+        var hide = function () {
+          splash.classList.add("hide");
+          setTimeout(function () { splash.remove(); }, 400);
+        };
+        var root = document.getElementById("root");
+        var mo = new MutationObserver(function () {
+          if (root && root.childElementCount > 0) { mo.disconnect(); hide(); }
+        });
+        if (root) mo.observe(root, { childList: true });
+        // Hard safety: never keep splash more than 6s
+        setTimeout(function () { mo.disconnect(); hide(); }, 6000);
+      })();
+    </script>
   </body>
-  <ins class="adsbygoogle"
-     style="display:block"
-     data-ad-format="fluid"
-     data-ad-layout-key="-gw-3+1f-3d+2z"
-     data-ad-client="ca-pub-5155694514149693"
-     data-ad-slot="5752080191"></ins>
-
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script>
 </html>
