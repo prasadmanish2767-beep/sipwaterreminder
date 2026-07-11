@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
 
 export function OfflineBanner() {
-  const [online, setOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
+  const [online, setOnline] = useState(true);
 
   useEffect(() => {
+    setOnline(navigator.onLine);
     const up = () => setOnline(true);
     const down = () => setOnline(false);
     window.addEventListener("online", up);
