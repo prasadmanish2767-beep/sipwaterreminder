@@ -1,11 +1,13 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "app.sip.waterreminder",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_YOUR_APP_SIGNING_SHA256_FINGERPRINT"
+        "50:28:15:9A:E5:A5:57:6B:FF:C2:A2:52:0F:42:35:90:34:FC:EA:FA:70:19:A6:ED:27:9F:A1:25:FE:F2:EA:89"
       ]
     }
   }
