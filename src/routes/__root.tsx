@@ -68,7 +68,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#f2b84b" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "Sip" },
+      { name: "google-site-verification", content: "m427BR53ugmMfapruucTz2EaBcE5NMOXmMUcXXeJf34" },
+
       { title: "Sip — Water Reminder" },
       { name: "description", content: "Track your daily water intake with gentle hourly reminders." },
       { property: "og:title", content: "Sip — Water Reminder" },
