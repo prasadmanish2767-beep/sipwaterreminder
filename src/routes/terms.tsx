@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalLayout } from "../components/LegalLayout";
 
 export const Route = createFileRoute("/terms")({
@@ -52,7 +52,7 @@ function TermsPage() {
       <p>
         Your logs are stored locally on your device. You are responsible for
         backing them up if needed. See our{" "}
-        <a href="/privacy">Privacy Policy</a> for details.
+        <Link to="/privacy">Privacy Policy</Link> for details.
       </p>
 
       <h2>4. Reminders & Notifications</h2>

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalLayout } from "../components/LegalLayout";
 import { Droplet, Bell, Calendar, Shield } from "lucide-react";
 
@@ -66,7 +66,7 @@ function AboutPage() {
       <p>
         Sip is an independent project. For feedback, feature requests, or
         partnerships, please reach out via our{" "}
-        <a href="/contact">contact page</a>.
+        <Link to="/contact">contact page</Link>.
       </p>
 
       <h2>Version</h2>
