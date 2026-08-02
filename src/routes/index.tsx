@@ -628,11 +628,28 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
   ];
   const todayDate = displayNow.getDate();
 
+  const keyOf = (d: number) =>
+    `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const met = (d: number) => (logs[keyOf(d)] ?? 0) >= goal;
+
+  // longest streak inside this month
+  let best = 0;
+  let run = 0;
+  for (let d = 1; d <= days; d++) {
+    run = met(d) ? run + 1 : 0;
+    if (run > best) best = run;
+  }
+
   return (
     <section className="mt-6 rounded-[28px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">{monthName}</h2>
-        <span className="text-xs text-muted-foreground">Goal met days</span>
+        <div>
+          <h2 className="font-display text-lg font-semibold">{monthName}</h2>
+          <p className="text-[11px] text-muted-foreground">Hydration streak calendar</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cream)] px-3 py-1.5 text-[11px] font-medium text-[oklch(0.35_0.08_70)]">
+          <Flame className="h-3.5 w-3.5" /> {best} day best
+        </span>
       </div>
       <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
@@ -642,23 +659,27 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
-          const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const dayMl = logs[k] ?? 0;
+          const dayMl = logs[keyOf(d)] ?? 0;
           const done = dayMl >= goal;
           const partial = dayMl > 0 && !done;
           const isToday = now !== null && d === todayDate;
+          const linkPrev = done && d > 1 && met(d - 1) && i % 7 !== 0;
+          const linkNext = done && d < days && met(d + 1) && i % 7 !== 6;
           return (
             <div
               key={i}
-              className={`flex aspect-square flex-col items-center justify-center rounded-xl text-xs transition ${
-                isToday ? "bg-[var(--cream)] font-semibold" : ""
+              title={`${dayMl} ml`}
+              className={`flex aspect-square flex-col items-center justify-center text-xs transition ${
+                done ? "bg-[var(--cream-deep)]" : isToday ? "bg-[var(--cream)] font-semibold" : ""
+              } ${linkPrev ? "rounded-l-none" : "rounded-l-xl"} ${linkNext ? "rounded-r-none" : "rounded-r-xl"} ${
+                isToday && done ? "ring-2 ring-[var(--honey-deep)]" : ""
               }`}
             >
-              <span className={`text-[11px] ${isToday ? "text-[oklch(0.3_0.05_60)]" : "text-muted-foreground"}`}>
+              <span className={`text-[11px] ${isToday || done ? "text-[oklch(0.3_0.05_60)]" : "text-muted-foreground"}`}>
                 {d}
               </span>
               {done ? (
-                <span className="mt-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--honey)]">
+                <span className="mt-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--honey-deep)]">
                   <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />
                 </span>
               ) : partial ? (
@@ -670,6 +691,12 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
           );
         })}
       </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+        <Legend className="bg-[var(--honey-deep)]" label="Goal met" />
+        <Legend className="border-2 border-[var(--honey)]" label="Partial" />
+        <Legend className="bg-border" label="No log" />
+      </div>
+
     </section>
   );
 }
