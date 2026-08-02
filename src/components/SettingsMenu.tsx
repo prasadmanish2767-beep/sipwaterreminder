@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   X,
@@ -17,6 +17,8 @@ import {
   FileText,
   Mail,
   ChevronRight,
+  Download,
+  Upload,
 } from "lucide-react";
 
 type Props = {
@@ -33,7 +35,10 @@ type Props = {
   onResetToday: () => void;
   onResetAll: () => void;
   onReplayIntro: () => void;
+  onExportBackup: () => void;
+  onImportBackup: (file: File) => void;
 };
+
 
 export function SettingsMenu({
   open,
