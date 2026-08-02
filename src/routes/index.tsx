@@ -27,6 +27,9 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { SmartGoalCard } from "../components/SmartGoalCard";
 import { InsightsCard } from "../components/InsightsCard";
 import { AchievementsCard } from "../components/AchievementsCard";
+import { ConsentGate } from "../components/ConsentGate";
+import { ReminderSetup, type Unit } from "../components/ReminderSetup";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
