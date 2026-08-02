@@ -271,9 +271,63 @@ export function SipApp() {
     setIntroKey((k) => k + 1);
   };
 
+  useEffect(() => {
+    try { if (localStorage.getItem("sip.consent.v1")) setConsented(true); } catch {}
+  }, []);
+
+  const exportBackup = () => {
+    const payload = {
+      app: "sip-water-reminder",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      dailyGoal,
+      unit,
+      settings,
+      logs,
+    };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sip-backup-${todayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text());
+      if (data && typeof data.logs === "object") setLogs(data.logs as Log);
+      if (typeof data?.dailyGoal === "number") setDailyGoal(data.dailyGoal);
+      if (data?.unit === "ml" || data?.unit === "oz" || data?.unit === "cups") setUnit(data.unit);
+      if (data?.settings) setSettings((s) => ({ ...s, ...data.settings }));
+      setMenuOpen(false);
+      alert("Backup restore ho gaya ✅");
+    } catch {
+      alert("Yeh file valid Sip backup nahi lagti.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
       <OfflineBanner />
+      <ConsentGate onAccepted={() => setConsented(true)} />
+      {consented && (
+        <ReminderSetup
+          initial={{ wake: settings.wake, sleep: settings.sleep, intervalMin: settings.intervalMin, unit }}
+          onDone={(r) => {
+            setUnit(r.unit);
+            setSettings((s) => ({
+              ...s,
+              wake: r.wake,
+              sleep: r.sleep,
+              intervalMin: r.intervalMin,
+              enabled: r.enabled,
+            }));
+          }}
+        />
+      )}
       <Onboarding key={introKey} />
       <SettingsMenu
         open={menuOpen}
@@ -285,10 +339,13 @@ export function SipApp() {
         onResetToday={resetToday}
         onResetAll={resetAll}
         onReplayIntro={replayIntro}
+        onExportBackup={exportBackup}
+        onImportBackup={importBackup}
       />
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
         <Header onMenu={() => setMenuOpen(true)} />
-        <HeroCard ml={ml} pct={pct} goal={dailyGoal} onAdd={add} />
+        <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+
         <QuickAdd onAdd={add} />
 
         <div className="mt-6 grid grid-cols-3 gap-3">
