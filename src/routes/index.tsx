@@ -161,13 +161,36 @@ function useClientClock() {
   return now;
 }
 
+function useUnit() {
+  const [unit, setUnit] = useState<Unit>("ml");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.unit");
+      if (raw === "ml" || raw === "oz" || raw === "cups") setUnit(raw);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("sip.unit", unit); } catch {}
+  }, [unit]);
+  return [unit, setUnit] as const;
+}
+
+function formatVol(ml: number, unit: Unit) {
+  if (unit === "oz") return { value: (ml / 29.5735).toFixed(1), suffix: "oz" };
+  if (unit === "cups") return { value: (ml / 250).toFixed(1), suffix: "cups" };
+  return { value: (ml / 1000).toFixed(2), suffix: "L" };
+}
+
 export function SipApp() {
   const [logs, setLogs] = useLogs();
   const [settings, setSettings] = useReminderSettings();
   const [dailyGoal, setDailyGoal] = useDailyGoal();
+  const [unit, setUnit] = useUnit();
   const [menuOpen, setMenuOpen] = useState(false);
   const [introKey, setIntroKey] = useState(0);
+  const [consented, setConsented] = useState(false);
   const clientNow = useClientClock();
+
   const today = todayKey();
   const ml = logs[today] ?? 0;
   const pct = Math.min(100, Math.round((ml / dailyGoal) * 100));
