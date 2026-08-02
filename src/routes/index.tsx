@@ -24,6 +24,9 @@ import {
 import { Onboarding } from "../components/Onboarding";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { SmartGoalCard } from "../components/SmartGoalCard";
+import { InsightsCard } from "../components/InsightsCard";
+import { AchievementsCard } from "../components/AchievementsCard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
