@@ -167,8 +167,36 @@ export function SettingsMenu({
             <LinkRow to="/contact" icon={<Mail className="h-4 w-4" />} label="Contact us" sub="prasadmanish2767@gmail.com" onNav={onClose} />
           </Section>
 
+          {/* Backup */}
+          <Section title="Backup & restore" subtitle="Apna data safe rakhein">
+            <MenuRow
+              icon={<Download className="h-4 w-4" />}
+              label="Export backup (.json)"
+              sub="Logs, goal aur settings download karein"
+              onClick={onExportBackup}
+            />
+            <MenuRow
+              icon={<Upload className="h-4 w-4" />}
+              label="Import / restore backup"
+              sub="Pehle liya hua backup file wapas laayein"
+              onClick={() => fileRef.current?.click()}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onImportBackup(f);
+                e.target.value = "";
+              }}
+            />
+          </Section>
+
           {/* Danger */}
           <Section title="Data">
+
             <MenuRow
               icon={<RotateCcw className="h-4 w-4" />}
               label="Reset today's water"
