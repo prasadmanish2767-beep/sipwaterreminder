@@ -27,6 +27,9 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { SmartGoalCard } from "../components/SmartGoalCard";
 import { InsightsCard } from "../components/InsightsCard";
 import { AchievementsCard } from "../components/AchievementsCard";
+import { ConsentGate } from "../components/ConsentGate";
+import { ReminderSetup, type Unit } from "../components/ReminderSetup";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -158,13 +161,36 @@ function useClientClock() {
   return now;
 }
 
+function useUnit() {
+  const [unit, setUnit] = useState<Unit>("ml");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sip.unit");
+      if (raw === "ml" || raw === "oz" || raw === "cups") setUnit(raw);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("sip.unit", unit); } catch {}
+  }, [unit]);
+  return [unit, setUnit] as const;
+}
+
+function formatVol(ml: number, unit: Unit) {
+  if (unit === "oz") return { value: (ml / 29.5735).toFixed(1), suffix: "oz" };
+  if (unit === "cups") return { value: (ml / 250).toFixed(1), suffix: "cups" };
+  return { value: (ml / 1000).toFixed(2), suffix: "L" };
+}
+
 export function SipApp() {
   const [logs, setLogs] = useLogs();
   const [settings, setSettings] = useReminderSettings();
   const [dailyGoal, setDailyGoal] = useDailyGoal();
+  const [unit, setUnit] = useUnit();
   const [menuOpen, setMenuOpen] = useState(false);
   const [introKey, setIntroKey] = useState(0);
+  const [consented, setConsented] = useState(false);
   const clientNow = useClientClock();
+
   const today = todayKey();
   const ml = logs[today] ?? 0;
   const pct = Math.min(100, Math.round((ml / dailyGoal) * 100));
@@ -245,9 +271,63 @@ export function SipApp() {
     setIntroKey((k) => k + 1);
   };
 
+  useEffect(() => {
+    try { if (localStorage.getItem("sip.consent.v1")) setConsented(true); } catch {}
+  }, []);
+
+  const exportBackup = () => {
+    const payload = {
+      app: "sip-water-reminder",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      dailyGoal,
+      unit,
+      settings,
+      logs,
+    };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sip-backup-${todayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text());
+      if (data && typeof data.logs === "object") setLogs(data.logs as Log);
+      if (typeof data?.dailyGoal === "number") setDailyGoal(data.dailyGoal);
+      if (data?.unit === "ml" || data?.unit === "oz" || data?.unit === "cups") setUnit(data.unit);
+      if (data?.settings) setSettings((s) => ({ ...s, ...data.settings }));
+      setMenuOpen(false);
+      alert("Backup restore ho gaya ✅");
+    } catch {
+      alert("Yeh file valid Sip backup nahi lagti.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
       <OfflineBanner />
+      <ConsentGate onAccepted={() => setConsented(true)} />
+      {consented && (
+        <ReminderSetup
+          initial={{ wake: settings.wake, sleep: settings.sleep, intervalMin: settings.intervalMin, unit }}
+          onDone={(r) => {
+            setUnit(r.unit);
+            setSettings((s) => ({
+              ...s,
+              wake: r.wake,
+              sleep: r.sleep,
+              intervalMin: r.intervalMin,
+              enabled: r.enabled,
+            }));
+          }}
+        />
+      )}
       <Onboarding key={introKey} />
       <SettingsMenu
         open={menuOpen}
@@ -259,10 +339,13 @@ export function SipApp() {
         onResetToday={resetToday}
         onResetAll={resetAll}
         onReplayIntro={replayIntro}
+        onExportBackup={exportBackup}
+        onImportBackup={importBackup}
       />
       <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
         <Header onMenu={() => setMenuOpen(true)} />
-        <HeroCard ml={ml} pct={pct} goal={dailyGoal} onAdd={add} />
+        <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+
         <QuickAdd onAdd={add} />
 
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -369,8 +452,10 @@ function Header({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: number; onAdd: (n: number) => void }) {
+function HeroCard({ ml, pct, goal, unit, onAdd }: { ml: number; pct: number; goal: number; unit: Unit; onAdd: (n: number) => void }) {
   const left = Math.max(0, goal - ml);
+  const cur = formatVol(ml, unit);
+  const rem = formatVol(left, unit);
   return (
     <section
       className="relative overflow-hidden rounded-[28px] p-7 shadow-[var(--shadow-soft)]"
@@ -381,13 +466,14 @@ function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: num
       </p>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="font-display text-6xl font-bold leading-none tracking-tight text-[oklch(0.28_0.05_60)]">
-          {(ml / 1000).toFixed(2)}
+          {cur.value}
         </span>
-        <span className="font-display text-2xl font-semibold text-[oklch(0.4_0.06_65)]">L</span>
+        <span className="font-display text-2xl font-semibold text-[oklch(0.4_0.06_65)]">{cur.suffix}</span>
       </div>
       <p className="mt-1 text-sm text-[oklch(0.4_0.05_65)]">
-        {left > 0 ? `${(left / 1000).toFixed(2)}L to your goal` : "Goal reached — beautifully done."}
+        {left > 0 ? `${rem.value}${rem.suffix === "L" ? "L" : ` ${rem.suffix}`} to your goal` : "Goal reached — beautifully done."}
       </p>
+
 
       <div className="mt-6 h-3 w-full overflow-hidden rounded-full bg-[oklch(1_0_0/0.5)]">
         <div
@@ -542,11 +628,28 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
   ];
   const todayDate = displayNow.getDate();
 
+  const keyOf = (d: number) =>
+    `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const met = (d: number) => (logs[keyOf(d)] ?? 0) >= goal;
+
+  // longest streak inside this month
+  let best = 0;
+  let run = 0;
+  for (let d = 1; d <= days; d++) {
+    run = met(d) ? run + 1 : 0;
+    if (run > best) best = run;
+  }
+
   return (
     <section className="mt-6 rounded-[28px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">{monthName}</h2>
-        <span className="text-xs text-muted-foreground">Goal met days</span>
+        <div>
+          <h2 className="font-display text-lg font-semibold">{monthName}</h2>
+          <p className="text-[11px] text-muted-foreground">Hydration streak calendar</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cream)] px-3 py-1.5 text-[11px] font-medium text-[oklch(0.35_0.08_70)]">
+          <Flame className="h-3.5 w-3.5" /> {best} day best
+        </span>
       </div>
       <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
@@ -556,23 +659,27 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
-          const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const dayMl = logs[k] ?? 0;
+          const dayMl = logs[keyOf(d)] ?? 0;
           const done = dayMl >= goal;
           const partial = dayMl > 0 && !done;
           const isToday = now !== null && d === todayDate;
+          const linkPrev = done && d > 1 && met(d - 1) && i % 7 !== 0;
+          const linkNext = done && d < days && met(d + 1) && i % 7 !== 6;
           return (
             <div
               key={i}
-              className={`flex aspect-square flex-col items-center justify-center rounded-xl text-xs transition ${
-                isToday ? "bg-[var(--cream)] font-semibold" : ""
+              title={`${dayMl} ml`}
+              className={`flex aspect-square flex-col items-center justify-center text-xs transition ${
+                done ? "bg-[var(--cream-deep)]" : isToday ? "bg-[var(--cream)] font-semibold" : ""
+              } ${linkPrev ? "rounded-l-none" : "rounded-l-xl"} ${linkNext ? "rounded-r-none" : "rounded-r-xl"} ${
+                isToday && done ? "ring-2 ring-[var(--honey-deep)]" : ""
               }`}
             >
-              <span className={`text-[11px] ${isToday ? "text-[oklch(0.3_0.05_60)]" : "text-muted-foreground"}`}>
+              <span className={`text-[11px] ${isToday || done ? "text-[oklch(0.3_0.05_60)]" : "text-muted-foreground"}`}>
                 {d}
               </span>
               {done ? (
-                <span className="mt-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--honey)]">
+                <span className="mt-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--honey-deep)]">
                   <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />
                 </span>
               ) : partial ? (
@@ -584,9 +691,25 @@ function CalendarCard({ logs, goal, now }: { logs: Log; goal: number; now: Date 
           );
         })}
       </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+        <Legend className="bg-[var(--honey-deep)]" label="Goal met" />
+        <Legend className="border-2 border-[var(--honey)]" label="Partial" />
+        <Legend className="bg-border" label="No log" />
+      </div>
+
     </section>
   );
 }
+
+function Legend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-3 w-3 rounded-full ${className}`} />
+      {label}
+    </span>
+  );
+}
+
 
 function ReminderCard({
   settings,
