@@ -24,6 +24,9 @@ import {
 import { Onboarding } from "../components/Onboarding";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { SmartGoalCard } from "../components/SmartGoalCard";
+import { InsightsCard } from "../components/InsightsCard";
+import { AchievementsCard } from "../components/AchievementsCard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -269,6 +272,12 @@ export function SipApp() {
         </div>
 
         <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
+
+        <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+
+        <AchievementsCard logs={logs} goal={dailyGoal} />
+
+        <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
 
         <ReminderCard
           settings={settings}
