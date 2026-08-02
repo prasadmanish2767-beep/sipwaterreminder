@@ -50,8 +50,12 @@ export function SettingsMenu({
   onResetToday,
   onResetAll,
   onReplayIntro,
+  onExportBackup,
+  onImportBackup,
 }: Props) {
   const [confirmAll, setConfirmAll] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     if (!open) setConfirmAll(false);
