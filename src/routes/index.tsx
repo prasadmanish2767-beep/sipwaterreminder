@@ -452,8 +452,10 @@ function Header({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: number; onAdd: (n: number) => void }) {
+function HeroCard({ ml, pct, goal, unit, onAdd }: { ml: number; pct: number; goal: number; unit: Unit; onAdd: (n: number) => void }) {
   const left = Math.max(0, goal - ml);
+  const cur = formatVol(ml, unit);
+  const rem = formatVol(left, unit);
   return (
     <section
       className="relative overflow-hidden rounded-[28px] p-7 shadow-[var(--shadow-soft)]"
@@ -464,13 +466,14 @@ function HeroCard({ ml, pct, goal, onAdd }: { ml: number; pct: number; goal: num
       </p>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="font-display text-6xl font-bold leading-none tracking-tight text-[oklch(0.28_0.05_60)]">
-          {(ml / 1000).toFixed(2)}
+          {cur.value}
         </span>
-        <span className="font-display text-2xl font-semibold text-[oklch(0.4_0.06_65)]">L</span>
+        <span className="font-display text-2xl font-semibold text-[oklch(0.4_0.06_65)]">{cur.suffix}</span>
       </div>
       <p className="mt-1 text-sm text-[oklch(0.4_0.05_65)]">
-        {left > 0 ? `${(left / 1000).toFixed(2)}L to your goal` : "Goal reached — beautifully done."}
+        {left > 0 ? `${rem.value}${rem.suffix === "L" ? "L" : ` ${rem.suffix}`} to your goal` : "Goal reached — beautifully done."}
       </p>
+
 
       <div className="mt-6 h-3 w-full overflow-hidden rounded-full bg-[oklch(1_0_0/0.5)]">
         <div
