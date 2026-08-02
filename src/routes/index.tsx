@@ -273,6 +273,12 @@ export function SipApp() {
 
         <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
 
+        <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+
+        <AchievementsCard logs={logs} goal={dailyGoal} />
+
+        <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
+
         <ReminderCard
           settings={settings}
           setSettings={setSettings}
