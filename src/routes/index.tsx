@@ -27,6 +27,8 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { SmartGoalCard } from "../components/SmartGoalCard";
 import { InsightsCard } from "../components/InsightsCard";
 import { AchievementsCard } from "../components/AchievementsCard";
+import { BottomNav } from "../components/BottomNav";
+
 import { ConsentGate } from "../components/ConsentGate";
 import { ReminderSetup, type Unit } from "../components/ReminderSetup";
 
@@ -295,6 +297,29 @@ export function SipApp() {
     URL.revokeObjectURL(url);
   };
 
+  const [activeTab, setActiveTab] = useState("home");
+  const scrollToSection = (id: string) => {
+    setActiveTab(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  useEffect(() => {
+    const ids = ["home", "add", "history", "goals"];
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length) setActiveTab(visible[0].target.id);
+      },
+      { rootMargin: "-45% 0px -45% 0px" },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, []);
+
+
+
   const importBackup = async (file: File) => {
     try {
       const data = JSON.parse(await file.text());
@@ -342,11 +367,15 @@ export function SipApp() {
         onExportBackup={exportBackup}
         onImportBackup={importBackup}
       />
-      <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
+      <div className="mx-auto max-w-md px-5 pb-32 pt-10 sm:max-w-xl sm:px-8">
         <Header onMenu={() => setMenuOpen(true)} />
-        <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+        <div id="home" className="scroll-mt-6">
+          <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+        </div>
 
-        <QuickAdd onAdd={add} />
+        <div id="add" className="scroll-mt-6">
+          <QuickAdd onAdd={add} />
+        </div>
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <StatChip icon={<Check className="h-4 w-4" />} value={completedThisMonth} label="this month" />
@@ -354,13 +383,17 @@ export function SipApp() {
           <StatChip icon={<Flame className="h-4 w-4" />} value={streak} label="day streak" />
         </div>
 
-        <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
+        <div id="history" className="scroll-mt-6">
+          <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
 
-        <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+          <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+        </div>
 
-        <AchievementsCard logs={logs} goal={dailyGoal} />
+        <div id="goals" className="scroll-mt-6">
+          <AchievementsCard logs={logs} goal={dailyGoal} />
 
-        <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
+          <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
+        </div>
 
         <ReminderCard
           settings={settings}
@@ -377,7 +410,14 @@ export function SipApp() {
           Stay hydrated · {(dailyGoal / 1000).toFixed(dailyGoal % 1000 ? 1 : 0)}L daily goal
         </footer>
       </div>
+      <BottomNav
+        active={activeTab}
+        onNavigate={scrollToSection}
+        onAdd={() => scrollToSection("add")}
+        onProfile={() => setMenuOpen(true)}
+      />
     </div>
+
   );
 }
 
