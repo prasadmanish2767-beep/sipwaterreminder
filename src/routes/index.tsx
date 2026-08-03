@@ -297,6 +297,29 @@ export function SipApp() {
     URL.revokeObjectURL(url);
   };
 
+  const [activeTab, setActiveTab] = useState("home");
+  const scrollToSection = (id: string) => {
+    setActiveTab(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  useEffect(() => {
+    const ids = ["home", "add", "history", "goals"];
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length) setActiveTab(visible[0].target.id);
+      },
+      { rootMargin: "-45% 0px -45% 0px" },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, []);
+
+
+
   const importBackup = async (file: File) => {
     try {
       const data = JSON.parse(await file.text());
