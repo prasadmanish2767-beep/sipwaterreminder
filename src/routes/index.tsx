@@ -342,11 +342,15 @@ export function SipApp() {
         onExportBackup={exportBackup}
         onImportBackup={importBackup}
       />
-      <div className="mx-auto max-w-md px-5 pb-24 pt-10 sm:max-w-xl sm:px-8">
+      <div className="mx-auto max-w-md px-5 pb-32 pt-10 sm:max-w-xl sm:px-8">
         <Header onMenu={() => setMenuOpen(true)} />
-        <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+        <div id="home" className="scroll-mt-6">
+          <HeroCard ml={ml} pct={pct} goal={dailyGoal} unit={unit} onAdd={add} />
+        </div>
 
-        <QuickAdd onAdd={add} />
+        <div id="add" className="scroll-mt-6">
+          <QuickAdd onAdd={add} />
+        </div>
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <StatChip icon={<Check className="h-4 w-4" />} value={completedThisMonth} label="this month" />
@@ -354,13 +358,17 @@ export function SipApp() {
           <StatChip icon={<Flame className="h-4 w-4" />} value={streak} label="day streak" />
         </div>
 
-        <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
+        <div id="history" className="scroll-mt-6">
+          <CalendarCard logs={logs} goal={dailyGoal} now={clientNow} />
 
-        <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+          <InsightsCard logs={logs} goal={dailyGoal} now={clientNow} />
+        </div>
 
-        <AchievementsCard logs={logs} goal={dailyGoal} />
+        <div id="goals" className="scroll-mt-6">
+          <AchievementsCard logs={logs} goal={dailyGoal} />
 
-        <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
+          <SmartGoalCard goal={dailyGoal} setGoal={setDailyGoal} />
+        </div>
 
         <ReminderCard
           settings={settings}
@@ -377,7 +385,14 @@ export function SipApp() {
           Stay hydrated · {(dailyGoal / 1000).toFixed(dailyGoal % 1000 ? 1 : 0)}L daily goal
         </footer>
       </div>
+      <BottomNav
+        active={activeTab}
+        onNavigate={scrollToSection}
+        onAdd={() => scrollToSection("add")}
+        onProfile={() => setMenuOpen(true)}
+      />
     </div>
+
   );
 }
 
