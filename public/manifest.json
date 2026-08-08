@@ -1,26 +1,27 @@
 {
-  "name": "Sip Water Reminder",
+  "name": "Sip — Water Reminder",
   "short_name": "Sip",
-  "description": "Stay hydrated with timely water drinking reminders.",
-  "start_url": "/",
+  "description": "Gentle hourly reminders to drink water and track your daily hydration. Privacy-first, works offline.",
+  "start_url": "/?source=pwa",
+  "id": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFFFFF",
-  "theme_color": "#2196F3",
+  "background_color": "#faf3e2",
+  "theme_color": "#f2b84b",
   "lang": "en",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
