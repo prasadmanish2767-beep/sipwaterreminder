@@ -164,6 +164,7 @@ export function SettingsMenu({
           <Section title="Legal & support">
             <LinkRow to="/privacy" icon={<Shield className="h-4 w-4" />} label="Privacy Policy" sub="How your data is handled" onNav={onClose} />
             <LinkRow to="/terms" icon={<FileText className="h-4 w-4" />} label="Terms & Conditions" sub="Rules for using Sip" onNav={onClose} />
+            <LinkRow to="/data-deletion" icon={<Trash2 className="h-4 w-4" />} label="Delete your data" sub="How to erase everything, one tap" onNav={onClose} />
             <LinkRow to="/contact" icon={<Mail className="h-4 w-4" />} label="Contact us" sub="prasadmanish2767@gmail.com" onNav={onClose} />
           </Section>
 
